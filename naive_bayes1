@@ -1,1 +1,809 @@
-{"metadata":{"kernelspec":{"language":"python","display_name":"Python 3","name":"python3"},"language_info":{"name":"python","version":"3.11.13","mimetype":"text/x-python","codemirror_mode":{"name":"ipython","version":3},"pygments_lexer":"ipython3","nbconvert_exporter":"python","file_extension":".py"},"kaggle":{"accelerator":"none","dataSources":[{"sourceId":7408860,"sourceType":"datasetVersion","datasetId":4309095}],"dockerImageVersionId":31153,"isInternetEnabled":true,"language":"python","sourceType":"notebook","isGpuEnabled":false}},"nbformat_minor":4,"nbformat":4,"cells":[{"cell_type":"code","source":"# This Python 3 environment comes with many helpful analytics libraries installed\n# It is defined by the kaggle/python Docker image: https://github.com/kaggle/docker-python\n# For example, here's several helpful packages to load\n\nimport numpy as np # linear algebra\nimport pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)\n\n# Input data files are available in the read-only \"../input/\" directory\n# For example, running this (by clicking run or pressing Shift+Enter) will list all files under the input directory\n\nimport os\nfor dirname, _, filenames in os.walk('/kaggle/input'):\n    for filename in filenames:\n        print(os.path.join(dirname, filename))\n\n# You can write up to 20GB to the current directory (/kaggle/working/) that gets preserved as output when you create a version using \"Save & Run All\" \n# You can also write temporary files to /kaggle/temp/, but they won't be saved outside of the current session","metadata":{"_uuid":"8f2839f25d086af736a60e9eeb907d3b93b6e0e5","_cell_guid":"b1076dfc-b9ad-4769-8c92-a6c4dae69d19","trusted":true},"outputs":[],"execution_count":null},{"cell_type":"code","source":"df = pd.read_csv('/kaggle/input/sentiment-analysis/sentiment_analysis.csv')","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T03:46:59.740465Z","iopub.execute_input":"2025-10-28T03:46:59.741268Z","iopub.status.idle":"2025-10-28T03:46:59.748210Z","shell.execute_reply.started":"2025-10-28T03:46:59.741213Z","shell.execute_reply":"2025-10-28T03:46:59.747558Z"}},"outputs":[],"execution_count":3},{"cell_type":"code","source":"df.head()","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T03:47:07.964295Z","iopub.execute_input":"2025-10-28T03:47:07.964910Z","iopub.status.idle":"2025-10-28T03:47:07.992019Z","shell.execute_reply.started":"2025-10-28T03:47:07.964884Z","shell.execute_reply":"2025-10-28T03:47:07.991092Z"}},"outputs":[{"execution_count":4,"output_type":"execute_result","data":{"text/plain":"   Year  Month  Day Time of Tweet  \\\n0  2018      8   18       morning   \n1  2018      8   18          noon   \n2  2017      8   18         night   \n3  2022      6    8       morning   \n4  2022      6    8          noon   \n\n                                                text sentiment     Platform  \n0              What a great day!!! Looks like dream.  positive    Twitter    \n1     I feel sorry, I miss you here in the sea beach  positive    Facebook   \n2                                     Don't angry me  negative     Facebook  \n3  We attend in the class just for listening teac...  negative    Facebook   \n4                  Those who want to go, let them go  negative   Instagram   ","text/html":"<div>\n<style scoped>\n    .dataframe tbody tr th:only-of-type {\n        vertical-align: middle;\n    }\n\n    .dataframe tbody tr th {\n        vertical-align: top;\n    }\n\n    .dataframe thead th {\n        text-align: right;\n    }\n</style>\n<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>Year</th>\n      <th>Month</th>\n      <th>Day</th>\n      <th>Time of Tweet</th>\n      <th>text</th>\n      <th>sentiment</th>\n      <th>Platform</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>0</th>\n      <td>2018</td>\n      <td>8</td>\n      <td>18</td>\n      <td>morning</td>\n      <td>What a great day!!! Looks like dream.</td>\n      <td>positive</td>\n      <td>Twitter</td>\n    </tr>\n    <tr>\n      <th>1</th>\n      <td>2018</td>\n      <td>8</td>\n      <td>18</td>\n      <td>noon</td>\n      <td>I feel sorry, I miss you here in the sea beach</td>\n      <td>positive</td>\n      <td>Facebook</td>\n    </tr>\n    <tr>\n      <th>2</th>\n      <td>2017</td>\n      <td>8</td>\n      <td>18</td>\n      <td>night</td>\n      <td>Don't angry me</td>\n      <td>negative</td>\n      <td>Facebook</td>\n    </tr>\n    <tr>\n      <th>3</th>\n      <td>2022</td>\n      <td>6</td>\n      <td>8</td>\n      <td>morning</td>\n      <td>We attend in the class just for listening teac...</td>\n      <td>negative</td>\n      <td>Facebook</td>\n    </tr>\n    <tr>\n      <th>4</th>\n      <td>2022</td>\n      <td>6</td>\n      <td>8</td>\n      <td>noon</td>\n      <td>Those who want to go, let them go</td>\n      <td>negative</td>\n      <td>Instagram</td>\n    </tr>\n  </tbody>\n</table>\n</div>"},"metadata":{}}],"execution_count":4},{"cell_type":"code","source":"import pandas as pd\nfrom sklearn.naive_bayes import MultinomialNB\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.feature_extraction.text import TfidfVectorizer\nfrom sklearn.metrics import accuracy_score, classification_report","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T03:55:02.205398Z","iopub.execute_input":"2025-10-28T03:55:02.205706Z","iopub.status.idle":"2025-10-28T03:55:02.210657Z","shell.execute_reply.started":"2025-10-28T03:55:02.205685Z","shell.execute_reply":"2025-10-28T03:55:02.209662Z"}},"outputs":[],"execution_count":15},{"cell_type":"code","source":"#X = df.iloc[:, [3,4,6]]\nX = df['text']\ny = df['sentiment']","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:03:16.544101Z","iopub.execute_input":"2025-10-28T04:03:16.544918Z","iopub.status.idle":"2025-10-28T04:03:16.548993Z","shell.execute_reply.started":"2025-10-28T04:03:16.544884Z","shell.execute_reply":"2025-10-28T04:03:16.547910Z"}},"outputs":[],"execution_count":34},{"cell_type":"code","source":"df.columns = [col.lower() for col in df.columns]\nif 'text' not in df.columns or 'sentiment' not in df.columns:\n    raise ValueError(\"The dataset must have 'text' and 'label' columns.\")","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:07:35.287426Z","iopub.execute_input":"2025-10-28T04:07:35.287735Z","iopub.status.idle":"2025-10-28T04:07:35.293397Z","shell.execute_reply.started":"2025-10-28T04:07:35.287716Z","shell.execute_reply":"2025-10-28T04:07:35.292300Z"}},"outputs":[],"execution_count":55},{"cell_type":"code","source":"X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:07:37.503392Z","iopub.execute_input":"2025-10-28T04:07:37.503694Z","iopub.status.idle":"2025-10-28T04:07:37.511570Z","shell.execute_reply.started":"2025-10-28T04:07:37.503674Z","shell.execute_reply":"2025-10-28T04:07:37.510717Z"}},"outputs":[],"execution_count":56},{"cell_type":"code","source":"vectorizer = TfidfVectorizer(stop_words='english',max_features=1000, min_df = 2, max_df = 0.2, ngram_range=(1,2))\nX_train_counts = vectorizer.fit_transform(X_train)\nX_test_counts = vectorizer.transform(X_test)","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:26:39.927565Z","iopub.execute_input":"2025-10-28T04:26:39.927864Z","iopub.status.idle":"2025-10-28T04:26:39.947913Z","shell.execute_reply.started":"2025-10-28T04:26:39.927834Z","shell.execute_reply":"2025-10-28T04:26:39.947102Z"}},"outputs":[],"execution_count":170},{"cell_type":"code","source":"X_train_counts.shape","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:26:41.536155Z","iopub.execute_input":"2025-10-28T04:26:41.536998Z","iopub.status.idle":"2025-10-28T04:26:41.542491Z","shell.execute_reply.started":"2025-10-28T04:26:41.536969Z","shell.execute_reply":"2025-10-28T04:26:41.541595Z"}},"outputs":[{"execution_count":171,"output_type":"execute_result","data":{"text/plain":"(399, 847)"},"metadata":{}}],"execution_count":171},{"cell_type":"code","source":"y_train.shape","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:11:35.145716Z","iopub.execute_input":"2025-10-28T04:11:35.146525Z","iopub.status.idle":"2025-10-28T04:11:35.152807Z","shell.execute_reply.started":"2025-10-28T04:11:35.146484Z","shell.execute_reply":"2025-10-28T04:11:35.151834Z"}},"outputs":[{"execution_count":95,"output_type":"execute_result","data":{"text/plain":"(399,)"},"metadata":{}}],"execution_count":95},{"cell_type":"code","source":"classifier = MultinomialNB(alpha=0.35)\nclassifier.fit(X_train_counts, y_train)","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:26:44.660348Z","iopub.execute_input":"2025-10-28T04:26:44.661143Z","iopub.status.idle":"2025-10-28T04:26:44.670740Z","shell.execute_reply.started":"2025-10-28T04:26:44.661113Z","shell.execute_reply":"2025-10-28T04:26:44.669804Z"}},"outputs":[{"execution_count":172,"output_type":"execute_result","data":{"text/plain":"MultinomialNB(alpha=0.35)","text/html":"<style>#sk-container-id-20 {color: black;background-color: white;}#sk-container-id-20 pre{padding: 0;}#sk-container-id-20 div.sk-toggleable {background-color: white;}#sk-container-id-20 label.sk-toggleable__label {cursor: pointer;display: block;width: 100%;margin-bottom: 0;padding: 0.3em;box-sizing: border-box;text-align: center;}#sk-container-id-20 label.sk-toggleable__label-arrow:before {content: \"▸\";float: left;margin-right: 0.25em;color: #696969;}#sk-container-id-20 label.sk-toggleable__label-arrow:hover:before {color: black;}#sk-container-id-20 div.sk-estimator:hover label.sk-toggleable__label-arrow:before {color: black;}#sk-container-id-20 div.sk-toggleable__content {max-height: 0;max-width: 0;overflow: hidden;text-align: left;background-color: #f0f8ff;}#sk-container-id-20 div.sk-toggleable__content pre {margin: 0.2em;color: black;border-radius: 0.25em;background-color: #f0f8ff;}#sk-container-id-20 input.sk-toggleable__control:checked~div.sk-toggleable__content {max-height: 200px;max-width: 100%;overflow: auto;}#sk-container-id-20 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {content: \"▾\";}#sk-container-id-20 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-20 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-20 input.sk-hidden--visually {border: 0;clip: rect(1px 1px 1px 1px);clip: rect(1px, 1px, 1px, 1px);height: 1px;margin: -1px;overflow: hidden;padding: 0;position: absolute;width: 1px;}#sk-container-id-20 div.sk-estimator {font-family: monospace;background-color: #f0f8ff;border: 1px dotted black;border-radius: 0.25em;box-sizing: border-box;margin-bottom: 0.5em;}#sk-container-id-20 div.sk-estimator:hover {background-color: #d4ebff;}#sk-container-id-20 div.sk-parallel-item::after {content: \"\";width: 100%;border-bottom: 1px solid gray;flex-grow: 1;}#sk-container-id-20 div.sk-label:hover label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-20 div.sk-serial::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: 0;}#sk-container-id-20 div.sk-serial {display: flex;flex-direction: column;align-items: center;background-color: white;padding-right: 0.2em;padding-left: 0.2em;position: relative;}#sk-container-id-20 div.sk-item {position: relative;z-index: 1;}#sk-container-id-20 div.sk-parallel {display: flex;align-items: stretch;justify-content: center;background-color: white;position: relative;}#sk-container-id-20 div.sk-item::before, #sk-container-id-20 div.sk-parallel-item::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: -1;}#sk-container-id-20 div.sk-parallel-item {display: flex;flex-direction: column;z-index: 1;position: relative;background-color: white;}#sk-container-id-20 div.sk-parallel-item:first-child::after {align-self: flex-end;width: 50%;}#sk-container-id-20 div.sk-parallel-item:last-child::after {align-self: flex-start;width: 50%;}#sk-container-id-20 div.sk-parallel-item:only-child::after {width: 0;}#sk-container-id-20 div.sk-dashed-wrapped {border: 1px dashed gray;margin: 0 0.4em 0.5em 0.4em;box-sizing: border-box;padding-bottom: 0.4em;background-color: white;}#sk-container-id-20 div.sk-label label {font-family: monospace;font-weight: bold;display: inline-block;line-height: 1.2em;}#sk-container-id-20 div.sk-label-container {text-align: center;}#sk-container-id-20 div.sk-container {/* jupyter's `normalize.less` sets `[hidden] { display: none; }` but bootstrap.min.css set `[hidden] { display: none !important; }` so we also need the `!important` here to be able to override the default hidden behavior on the sphinx rendered scikit-learn.org. See: https://github.com/scikit-learn/scikit-learn/issues/21755 */display: inline-block !important;position: relative;}#sk-container-id-20 div.sk-text-repr-fallback {display: none;}</style><div id=\"sk-container-id-20\" class=\"sk-top-container\"><div class=\"sk-text-repr-fallback\"><pre>MultinomialNB(alpha=0.35)</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br />On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class=\"sk-container\" hidden><div class=\"sk-item\"><div class=\"sk-estimator sk-toggleable\"><input class=\"sk-toggleable__control sk-hidden--visually\" id=\"sk-estimator-id-20\" type=\"checkbox\" checked><label for=\"sk-estimator-id-20\" class=\"sk-toggleable__label sk-toggleable__label-arrow\">MultinomialNB</label><div class=\"sk-toggleable__content\"><pre>MultinomialNB(alpha=0.35)</pre></div></div></div></div></div>"},"metadata":{}}],"execution_count":172},{"cell_type":"code","source":"y_pred = classifier.predict(X_test_counts)","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:21:40.691307Z","iopub.execute_input":"2025-10-28T04:21:40.691604Z","iopub.status.idle":"2025-10-28T04:21:40.696601Z","shell.execute_reply.started":"2025-10-28T04:21:40.691583Z","shell.execute_reply":"2025-10-28T04:21:40.695643Z"}},"outputs":[],"execution_count":166},{"cell_type":"code","source":"new_text = [\"This is very very bad product.\"]\nnew_text_counts = vectorizer.transform(new_text)\nprediction = classifier.predict(new_text_counts)\nprint(f\"\\nPrediction for '{new_text[0]}': {prediction[0]}\")","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:26:47.593877Z","iopub.execute_input":"2025-10-28T04:26:47.594180Z","iopub.status.idle":"2025-10-28T04:26:47.600853Z","shell.execute_reply.started":"2025-10-28T04:26:47.594158Z","shell.execute_reply":"2025-10-28T04:26:47.599783Z"}},"outputs":[{"name":"stdout","text":"\nPrediction for 'This is very very bad product.': neutral\n","output_type":"stream"}],"execution_count":173},{"cell_type":"code","source":"sample_text = [\"I love this product!\", \"This is terrible.\"]\nsample_vec = vectorizer.transform(sample_text)\nprint(\"\\nSample Predictions:\")\nprint(list(zip(sample_text, classifier.predict(sample_vec))))","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:21:54.961955Z","iopub.execute_input":"2025-10-28T04:21:54.962278Z","iopub.status.idle":"2025-10-28T04:21:54.969823Z","shell.execute_reply.started":"2025-10-28T04:21:54.962230Z","shell.execute_reply":"2025-10-28T04:21:54.969040Z"}},"outputs":[{"name":"stdout","text":"\nSample Predictions:\n[('I love this product!', 'positive'), ('This is terrible.', 'neutral')]\n","output_type":"stream"}],"execution_count":167},{"cell_type":"code","source":"print(f\"The accuracy score is: {accuracy_score(y_test, y_pred)}\")","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:26:50.322450Z","iopub.execute_input":"2025-10-28T04:26:50.323299Z","iopub.status.idle":"2025-10-28T04:26:50.328700Z","shell.execute_reply.started":"2025-10-28T04:26:50.323269Z","shell.execute_reply":"2025-10-28T04:26:50.327797Z"}},"outputs":[{"name":"stdout","text":"The accuracy score is: 0.65\n","output_type":"stream"}],"execution_count":174},{"cell_type":"code","source":"from sklearn.model_selection import GridSearchCV\nfrom sklearn.naive_bayes import MultinomialNB\n\nparams = {'alpha': [0.1, 0.3, 0.3, 1.0, 2.0, 5.0,1.3]}\ngrid = GridSearchCV(MultinomialNB(), param_grid=params, cv=7, scoring='accuracy')\ngrid.fit(X_train_counts, y_train)\n\nprint(\"Best alpha:\", grid.best_params_)\nprint(\"Best CV accuracy:\", grid.best_score_)\n\nbest_model = grid.best_estimator_\n","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:27:55.722382Z","iopub.execute_input":"2025-10-28T04:27:55.723215Z","iopub.status.idle":"2025-10-28T04:27:55.895116Z","shell.execute_reply.started":"2025-10-28T04:27:55.723185Z","shell.execute_reply":"2025-10-28T04:27:55.894264Z"}},"outputs":[{"name":"stdout","text":"Best alpha: {'alpha': 0.3}\nBest CV accuracy: 0.6842105263157894\n","output_type":"stream"}],"execution_count":177},{"cell_type":"code","source":"from sklearn.feature_extraction.text import CountVectorizer\nvectorizer1 = CountVectorizer(stop_words='english', ngram_range=(1,2),max_df=0.3, min_df=1)\nX_train_counts1 = vectorizer.fit_transform(X_train)\nX_test_counts1 = vectorizer.transform(X_test)","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:39:16.469873Z","iopub.execute_input":"2025-10-28T04:39:16.470158Z","iopub.status.idle":"2025-10-28T04:39:16.490713Z","shell.execute_reply.started":"2025-10-28T04:39:16.470138Z","shell.execute_reply":"2025-10-28T04:39:16.489528Z"}},"outputs":[],"execution_count":193},{"cell_type":"code","source":"classifier1 = MultinomialNB(alpha=0.35)\nclassifier1.fit(X_train_counts1, y_train)","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:39:18.007340Z","iopub.execute_input":"2025-10-28T04:39:18.007640Z","iopub.status.idle":"2025-10-28T04:39:18.017397Z","shell.execute_reply.started":"2025-10-28T04:39:18.007618Z","shell.execute_reply":"2025-10-28T04:39:18.016389Z"}},"outputs":[{"execution_count":194,"output_type":"execute_result","data":{"text/plain":"MultinomialNB(alpha=0.35)","text/html":"<style>#sk-container-id-25 {color: black;background-color: white;}#sk-container-id-25 pre{padding: 0;}#sk-container-id-25 div.sk-toggleable {background-color: white;}#sk-container-id-25 label.sk-toggleable__label {cursor: pointer;display: block;width: 100%;margin-bottom: 0;padding: 0.3em;box-sizing: border-box;text-align: center;}#sk-container-id-25 label.sk-toggleable__label-arrow:before {content: \"▸\";float: left;margin-right: 0.25em;color: #696969;}#sk-container-id-25 label.sk-toggleable__label-arrow:hover:before {color: black;}#sk-container-id-25 div.sk-estimator:hover label.sk-toggleable__label-arrow:before {color: black;}#sk-container-id-25 div.sk-toggleable__content {max-height: 0;max-width: 0;overflow: hidden;text-align: left;background-color: #f0f8ff;}#sk-container-id-25 div.sk-toggleable__content pre {margin: 0.2em;color: black;border-radius: 0.25em;background-color: #f0f8ff;}#sk-container-id-25 input.sk-toggleable__control:checked~div.sk-toggleable__content {max-height: 200px;max-width: 100%;overflow: auto;}#sk-container-id-25 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {content: \"▾\";}#sk-container-id-25 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-25 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-25 input.sk-hidden--visually {border: 0;clip: rect(1px 1px 1px 1px);clip: rect(1px, 1px, 1px, 1px);height: 1px;margin: -1px;overflow: hidden;padding: 0;position: absolute;width: 1px;}#sk-container-id-25 div.sk-estimator {font-family: monospace;background-color: #f0f8ff;border: 1px dotted black;border-radius: 0.25em;box-sizing: border-box;margin-bottom: 0.5em;}#sk-container-id-25 div.sk-estimator:hover {background-color: #d4ebff;}#sk-container-id-25 div.sk-parallel-item::after {content: \"\";width: 100%;border-bottom: 1px solid gray;flex-grow: 1;}#sk-container-id-25 div.sk-label:hover label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-25 div.sk-serial::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: 0;}#sk-container-id-25 div.sk-serial {display: flex;flex-direction: column;align-items: center;background-color: white;padding-right: 0.2em;padding-left: 0.2em;position: relative;}#sk-container-id-25 div.sk-item {position: relative;z-index: 1;}#sk-container-id-25 div.sk-parallel {display: flex;align-items: stretch;justify-content: center;background-color: white;position: relative;}#sk-container-id-25 div.sk-item::before, #sk-container-id-25 div.sk-parallel-item::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: -1;}#sk-container-id-25 div.sk-parallel-item {display: flex;flex-direction: column;z-index: 1;position: relative;background-color: white;}#sk-container-id-25 div.sk-parallel-item:first-child::after {align-self: flex-end;width: 50%;}#sk-container-id-25 div.sk-parallel-item:last-child::after {align-self: flex-start;width: 50%;}#sk-container-id-25 div.sk-parallel-item:only-child::after {width: 0;}#sk-container-id-25 div.sk-dashed-wrapped {border: 1px dashed gray;margin: 0 0.4em 0.5em 0.4em;box-sizing: border-box;padding-bottom: 0.4em;background-color: white;}#sk-container-id-25 div.sk-label label {font-family: monospace;font-weight: bold;display: inline-block;line-height: 1.2em;}#sk-container-id-25 div.sk-label-container {text-align: center;}#sk-container-id-25 div.sk-container {/* jupyter's `normalize.less` sets `[hidden] { display: none; }` but bootstrap.min.css set `[hidden] { display: none !important; }` so we also need the `!important` here to be able to override the default hidden behavior on the sphinx rendered scikit-learn.org. See: https://github.com/scikit-learn/scikit-learn/issues/21755 */display: inline-block !important;position: relative;}#sk-container-id-25 div.sk-text-repr-fallback {display: none;}</style><div id=\"sk-container-id-25\" class=\"sk-top-container\"><div class=\"sk-text-repr-fallback\"><pre>MultinomialNB(alpha=0.35)</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br />On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class=\"sk-container\" hidden><div class=\"sk-item\"><div class=\"sk-estimator sk-toggleable\"><input class=\"sk-toggleable__control sk-hidden--visually\" id=\"sk-estimator-id-25\" type=\"checkbox\" checked><label for=\"sk-estimator-id-25\" class=\"sk-toggleable__label sk-toggleable__label-arrow\">MultinomialNB</label><div class=\"sk-toggleable__content\"><pre>MultinomialNB(alpha=0.35)</pre></div></div></div></div></div>"},"metadata":{}}],"execution_count":194},{"cell_type":"code","source":"y_pred1 = classifier1.predict(X_test_counts1)","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:39:20.045607Z","iopub.execute_input":"2025-10-28T04:39:20.046361Z","iopub.status.idle":"2025-10-28T04:39:20.051360Z","shell.execute_reply.started":"2025-10-28T04:39:20.046332Z","shell.execute_reply":"2025-10-28T04:39:20.050386Z"}},"outputs":[],"execution_count":195},{"cell_type":"code","source":"print(f\"The accuracy score is: {accuracy_score(y_test, y_pred1)}\")","metadata":{"trusted":true,"execution":{"iopub.status.busy":"2025-10-28T04:39:22.095074Z","iopub.execute_input":"2025-10-28T04:39:22.095430Z","iopub.status.idle":"2025-10-28T04:39:22.102080Z","shell.execute_reply.started":"2025-10-28T04:39:22.095405Z","shell.execute_reply":"2025-10-28T04:39:22.100971Z"}},"outputs":[{"name":"stdout","text":"The accuracy score is: 0.65\n","output_type":"stream"}],"execution_count":196}]}
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "ff346960",
+   "metadata": {
+    "_cell_guid": "b1076dfc-b9ad-4769-8c92-a6c4dae69d19",
+    "_uuid": "8f2839f25d086af736a60e9eeb907d3b93b6e0e5",
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:33.206593Z",
+     "iopub.status.busy": "2025-10-28T04:41:33.206185Z",
+     "iopub.status.idle": "2025-10-28T04:41:35.108400Z",
+     "shell.execute_reply": "2025-10-28T04:41:35.107205Z"
+    },
+    "papermill": {
+     "duration": 1.910396,
+     "end_time": "2025-10-28T04:41:35.110031",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:33.199635",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "/kaggle/input/sentiment-analysis/sentiment_analysis.csv\n"
+     ]
+    }
+   ],
+   "source": [
+    "# This Python 3 environment comes with many helpful analytics libraries installed\n",
+    "# It is defined by the kaggle/python Docker image: https://github.com/kaggle/docker-python\n",
+    "# For example, here's several helpful packages to load\n",
+    "\n",
+    "import numpy as np # linear algebra\n",
+    "import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)\n",
+    "\n",
+    "# Input data files are available in the read-only \"../input/\" directory\n",
+    "# For example, running this (by clicking run or pressing Shift+Enter) will list all files under the input directory\n",
+    "\n",
+    "import os\n",
+    "for dirname, _, filenames in os.walk('/kaggle/input'):\n",
+    "    for filename in filenames:\n",
+    "        print(os.path.join(dirname, filename))\n",
+    "\n",
+    "# You can write up to 20GB to the current directory (/kaggle/working/) that gets preserved as output when you create a version using \"Save & Run All\" \n",
+    "# You can also write temporary files to /kaggle/temp/, but they won't be saved outside of the current session"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "af2870e6",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:35.119073Z",
+     "iopub.status.busy": "2025-10-28T04:41:35.118635Z",
+     "iopub.status.idle": "2025-10-28T04:41:35.138288Z",
+     "shell.execute_reply": "2025-10-28T04:41:35.137375Z"
+    },
+    "papermill": {
+     "duration": 0.025671,
+     "end_time": "2025-10-28T04:41:35.139792",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:35.114121",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "df = pd.read_csv('/kaggle/input/sentiment-analysis/sentiment_analysis.csv')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "38757020",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:35.148937Z",
+     "iopub.status.busy": "2025-10-28T04:41:35.148606Z",
+     "iopub.status.idle": "2025-10-28T04:41:35.173796Z",
+     "shell.execute_reply": "2025-10-28T04:41:35.172932Z"
+    },
+    "papermill": {
+     "duration": 0.03156,
+     "end_time": "2025-10-28T04:41:35.175386",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:35.143826",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Year</th>\n",
+       "      <th>Month</th>\n",
+       "      <th>Day</th>\n",
+       "      <th>Time of Tweet</th>\n",
+       "      <th>text</th>\n",
+       "      <th>sentiment</th>\n",
+       "      <th>Platform</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>2018</td>\n",
+       "      <td>8</td>\n",
+       "      <td>18</td>\n",
+       "      <td>morning</td>\n",
+       "      <td>What a great day!!! Looks like dream.</td>\n",
+       "      <td>positive</td>\n",
+       "      <td>Twitter</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>2018</td>\n",
+       "      <td>8</td>\n",
+       "      <td>18</td>\n",
+       "      <td>noon</td>\n",
+       "      <td>I feel sorry, I miss you here in the sea beach</td>\n",
+       "      <td>positive</td>\n",
+       "      <td>Facebook</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>2017</td>\n",
+       "      <td>8</td>\n",
+       "      <td>18</td>\n",
+       "      <td>night</td>\n",
+       "      <td>Don't angry me</td>\n",
+       "      <td>negative</td>\n",
+       "      <td>Facebook</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>2022</td>\n",
+       "      <td>6</td>\n",
+       "      <td>8</td>\n",
+       "      <td>morning</td>\n",
+       "      <td>We attend in the class just for listening teac...</td>\n",
+       "      <td>negative</td>\n",
+       "      <td>Facebook</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>2022</td>\n",
+       "      <td>6</td>\n",
+       "      <td>8</td>\n",
+       "      <td>noon</td>\n",
+       "      <td>Those who want to go, let them go</td>\n",
+       "      <td>negative</td>\n",
+       "      <td>Instagram</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   Year  Month  Day Time of Tweet  \\\n",
+       "0  2018      8   18       morning   \n",
+       "1  2018      8   18          noon   \n",
+       "2  2017      8   18         night   \n",
+       "3  2022      6    8       morning   \n",
+       "4  2022      6    8          noon   \n",
+       "\n",
+       "                                                text sentiment     Platform  \n",
+       "0              What a great day!!! Looks like dream.  positive    Twitter    \n",
+       "1     I feel sorry, I miss you here in the sea beach  positive    Facebook   \n",
+       "2                                     Don't angry me  negative     Facebook  \n",
+       "3  We attend in the class just for listening teac...  negative    Facebook   \n",
+       "4                  Those who want to go, let them go  negative   Instagram   "
+      ]
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "69191ad5",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:35.184780Z",
+     "iopub.status.busy": "2025-10-28T04:41:35.184489Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.561660Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.560877Z"
+    },
+    "papermill": {
+     "duration": 1.383844,
+     "end_time": "2025-10-28T04:41:36.563390",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:35.179546",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "from sklearn.naive_bayes import MultinomialNB\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn.feature_extraction.text import TfidfVectorizer\n",
+    "from sklearn.metrics import accuracy_score, classification_report"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "1cee3157",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.572892Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.572129Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.578276Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.577471Z"
+    },
+    "papermill": {
+     "duration": 0.012166,
+     "end_time": "2025-10-28T04:41:36.579613",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.567447",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "#X = df.iloc[:, [3,4,6]]\n",
+    "X = df['text']\n",
+    "y = df['sentiment']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "5fa943e5",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.588565Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.588251Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.593201Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.592438Z"
+    },
+    "papermill": {
+     "duration": 0.010879,
+     "end_time": "2025-10-28T04:41:36.594487",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.583608",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "df.columns = [col.lower() for col in df.columns]\n",
+    "if 'text' not in df.columns or 'sentiment' not in df.columns:\n",
+    "    raise ValueError(\"The dataset must have 'text' and 'label' columns.\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "ad26401b",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.603633Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.603315Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.612278Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.611502Z"
+    },
+    "papermill": {
+     "duration": 0.015103,
+     "end_time": "2025-10-28T04:41:36.613588",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.598485",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "d21de286",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.622615Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.622014Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.658388Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.657566Z"
+    },
+    "papermill": {
+     "duration": 0.042544,
+     "end_time": "2025-10-28T04:41:36.660001",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.617457",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "vectorizer = TfidfVectorizer(stop_words='english',max_features=1000, min_df = 2, max_df = 0.2, ngram_range=(1,2))\n",
+    "X_train_counts = vectorizer.fit_transform(X_train)\n",
+    "X_test_counts = vectorizer.transform(X_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "94d42ca5",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.669084Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.668761Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.674209Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.673426Z"
+    },
+    "papermill": {
+     "duration": 0.011391,
+     "end_time": "2025-10-28T04:41:36.675524",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.664133",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(399, 847)"
+      ]
+     },
+     "execution_count": 9,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "X_train_counts.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "ee978cfd",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.684579Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.684265Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.689355Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.688716Z"
+    },
+    "papermill": {
+     "duration": 0.011155,
+     "end_time": "2025-10-28T04:41:36.690573",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.679418",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(399,)"
+      ]
+     },
+     "execution_count": 10,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "y_train.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "efb5c759",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.699481Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.699174Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.714054Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.713212Z"
+    },
+    "papermill": {
+     "duration": 0.020871,
+     "end_time": "2025-10-28T04:41:36.715418",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.694547",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<style>#sk-container-id-1 {color: black;background-color: white;}#sk-container-id-1 pre{padding: 0;}#sk-container-id-1 div.sk-toggleable {background-color: white;}#sk-container-id-1 label.sk-toggleable__label {cursor: pointer;display: block;width: 100%;margin-bottom: 0;padding: 0.3em;box-sizing: border-box;text-align: center;}#sk-container-id-1 label.sk-toggleable__label-arrow:before {content: \"▸\";float: left;margin-right: 0.25em;color: #696969;}#sk-container-id-1 label.sk-toggleable__label-arrow:hover:before {color: black;}#sk-container-id-1 div.sk-estimator:hover label.sk-toggleable__label-arrow:before {color: black;}#sk-container-id-1 div.sk-toggleable__content {max-height: 0;max-width: 0;overflow: hidden;text-align: left;background-color: #f0f8ff;}#sk-container-id-1 div.sk-toggleable__content pre {margin: 0.2em;color: black;border-radius: 0.25em;background-color: #f0f8ff;}#sk-container-id-1 input.sk-toggleable__control:checked~div.sk-toggleable__content {max-height: 200px;max-width: 100%;overflow: auto;}#sk-container-id-1 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {content: \"▾\";}#sk-container-id-1 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 input.sk-hidden--visually {border: 0;clip: rect(1px 1px 1px 1px);clip: rect(1px, 1px, 1px, 1px);height: 1px;margin: -1px;overflow: hidden;padding: 0;position: absolute;width: 1px;}#sk-container-id-1 div.sk-estimator {font-family: monospace;background-color: #f0f8ff;border: 1px dotted black;border-radius: 0.25em;box-sizing: border-box;margin-bottom: 0.5em;}#sk-container-id-1 div.sk-estimator:hover {background-color: #d4ebff;}#sk-container-id-1 div.sk-parallel-item::after {content: \"\";width: 100%;border-bottom: 1px solid gray;flex-grow: 1;}#sk-container-id-1 div.sk-label:hover label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 div.sk-serial::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: 0;}#sk-container-id-1 div.sk-serial {display: flex;flex-direction: column;align-items: center;background-color: white;padding-right: 0.2em;padding-left: 0.2em;position: relative;}#sk-container-id-1 div.sk-item {position: relative;z-index: 1;}#sk-container-id-1 div.sk-parallel {display: flex;align-items: stretch;justify-content: center;background-color: white;position: relative;}#sk-container-id-1 div.sk-item::before, #sk-container-id-1 div.sk-parallel-item::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: -1;}#sk-container-id-1 div.sk-parallel-item {display: flex;flex-direction: column;z-index: 1;position: relative;background-color: white;}#sk-container-id-1 div.sk-parallel-item:first-child::after {align-self: flex-end;width: 50%;}#sk-container-id-1 div.sk-parallel-item:last-child::after {align-self: flex-start;width: 50%;}#sk-container-id-1 div.sk-parallel-item:only-child::after {width: 0;}#sk-container-id-1 div.sk-dashed-wrapped {border: 1px dashed gray;margin: 0 0.4em 0.5em 0.4em;box-sizing: border-box;padding-bottom: 0.4em;background-color: white;}#sk-container-id-1 div.sk-label label {font-family: monospace;font-weight: bold;display: inline-block;line-height: 1.2em;}#sk-container-id-1 div.sk-label-container {text-align: center;}#sk-container-id-1 div.sk-container {/* jupyter's `normalize.less` sets `[hidden] { display: none; }` but bootstrap.min.css set `[hidden] { display: none !important; }` so we also need the `!important` here to be able to override the default hidden behavior on the sphinx rendered scikit-learn.org. See: https://github.com/scikit-learn/scikit-learn/issues/21755 */display: inline-block !important;position: relative;}#sk-container-id-1 div.sk-text-repr-fallback {display: none;}</style><div id=\"sk-container-id-1\" class=\"sk-top-container\"><div class=\"sk-text-repr-fallback\"><pre>MultinomialNB(alpha=0.35)</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br />On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class=\"sk-container\" hidden><div class=\"sk-item\"><div class=\"sk-estimator sk-toggleable\"><input class=\"sk-toggleable__control sk-hidden--visually\" id=\"sk-estimator-id-1\" type=\"checkbox\" checked><label for=\"sk-estimator-id-1\" class=\"sk-toggleable__label sk-toggleable__label-arrow\">MultinomialNB</label><div class=\"sk-toggleable__content\"><pre>MultinomialNB(alpha=0.35)</pre></div></div></div></div></div>"
+      ],
+      "text/plain": [
+       "MultinomialNB(alpha=0.35)"
+      ]
+     },
+     "execution_count": 11,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "classifier = MultinomialNB(alpha=0.35)\n",
+    "classifier.fit(X_train_counts, y_train)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "244c2390",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.725559Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.724734Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.730068Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.729175Z"
+    },
+    "papermill": {
+     "duration": 0.011936,
+     "end_time": "2025-10-28T04:41:36.731609",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.719673",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "y_pred = classifier.predict(X_test_counts)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "a4af6171",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.741704Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.740803Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.747826Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.746853Z"
+    },
+    "papermill": {
+     "duration": 0.013395,
+     "end_time": "2025-10-28T04:41:36.749233",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.735838",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "Prediction for 'This is very very bad product.': neutral\n"
+     ]
+    }
+   ],
+   "source": [
+    "new_text = [\"This is very very bad product.\"]\n",
+    "new_text_counts = vectorizer.transform(new_text)\n",
+    "prediction = classifier.predict(new_text_counts)\n",
+    "print(f\"\\nPrediction for '{new_text[0]}': {prediction[0]}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "acb231a7",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.758833Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.758538Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.765027Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.763988Z"
+    },
+    "papermill": {
+     "duration": 0.012903,
+     "end_time": "2025-10-28T04:41:36.766382",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.753479",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "Sample Predictions:\n",
+      "[('I love this product!', 'positive'), ('This is terrible.', 'neutral')]\n"
+     ]
+    }
+   ],
+   "source": [
+    "sample_text = [\"I love this product!\", \"This is terrible.\"]\n",
+    "sample_vec = vectorizer.transform(sample_text)\n",
+    "print(\"\\nSample Predictions:\")\n",
+    "print(list(zip(sample_text, classifier.predict(sample_vec))))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "id": "45e4a109",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.776415Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.775826Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.782204Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.781285Z"
+    },
+    "papermill": {
+     "duration": 0.012642,
+     "end_time": "2025-10-28T04:41:36.783429",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.770787",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "The accuracy score is: 0.65\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(f\"The accuracy score is: {accuracy_score(y_test, y_pred)}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "673ff648",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.793240Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.792859Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.956414Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.955381Z"
+    },
+    "papermill": {
+     "duration": 0.170022,
+     "end_time": "2025-10-28T04:41:36.957804",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.787782",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Best alpha: {'alpha': 0.3}\n",
+      "Best CV accuracy: 0.6842105263157894\n"
+     ]
+    }
+   ],
+   "source": [
+    "from sklearn.model_selection import GridSearchCV\n",
+    "from sklearn.naive_bayes import MultinomialNB\n",
+    "\n",
+    "params = {'alpha': [0.1, 0.3, 0.3, 1.0, 2.0, 5.0,1.3]}\n",
+    "grid = GridSearchCV(MultinomialNB(), param_grid=params, cv=7, scoring='accuracy')\n",
+    "grid.fit(X_train_counts, y_train)\n",
+    "\n",
+    "print(\"Best alpha:\", grid.best_params_)\n",
+    "print(\"Best CV accuracy:\", grid.best_score_)\n",
+    "\n",
+    "best_model = grid.best_estimator_\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "id": "e891f0ec",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.968316Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.967662Z",
+     "iopub.status.idle": "2025-10-28T04:41:36.986199Z",
+     "shell.execute_reply": "2025-10-28T04:41:36.985507Z"
+    },
+    "papermill": {
+     "duration": 0.025251,
+     "end_time": "2025-10-28T04:41:36.987590",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.962339",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "from sklearn.feature_extraction.text import CountVectorizer\n",
+    "vectorizer1 = CountVectorizer(stop_words='english', ngram_range=(1,2),max_df=0.3, min_df=1)\n",
+    "X_train_counts1 = vectorizer.fit_transform(X_train)\n",
+    "X_test_counts1 = vectorizer.transform(X_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "96c40b8f",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:36.997625Z",
+     "iopub.status.busy": "2025-10-28T04:41:36.997031Z",
+     "iopub.status.idle": "2025-10-28T04:41:37.005288Z",
+     "shell.execute_reply": "2025-10-28T04:41:37.004513Z"
+    },
+    "papermill": {
+     "duration": 0.014517,
+     "end_time": "2025-10-28T04:41:37.006510",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:36.991993",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<style>#sk-container-id-2 {color: black;background-color: white;}#sk-container-id-2 pre{padding: 0;}#sk-container-id-2 div.sk-toggleable {background-color: white;}#sk-container-id-2 label.sk-toggleable__label {cursor: pointer;display: block;width: 100%;margin-bottom: 0;padding: 0.3em;box-sizing: border-box;text-align: center;}#sk-container-id-2 label.sk-toggleable__label-arrow:before {content: \"▸\";float: left;margin-right: 0.25em;color: #696969;}#sk-container-id-2 label.sk-toggleable__label-arrow:hover:before {color: black;}#sk-container-id-2 div.sk-estimator:hover label.sk-toggleable__label-arrow:before {color: black;}#sk-container-id-2 div.sk-toggleable__content {max-height: 0;max-width: 0;overflow: hidden;text-align: left;background-color: #f0f8ff;}#sk-container-id-2 div.sk-toggleable__content pre {margin: 0.2em;color: black;border-radius: 0.25em;background-color: #f0f8ff;}#sk-container-id-2 input.sk-toggleable__control:checked~div.sk-toggleable__content {max-height: 200px;max-width: 100%;overflow: auto;}#sk-container-id-2 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {content: \"▾\";}#sk-container-id-2 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-2 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-2 input.sk-hidden--visually {border: 0;clip: rect(1px 1px 1px 1px);clip: rect(1px, 1px, 1px, 1px);height: 1px;margin: -1px;overflow: hidden;padding: 0;position: absolute;width: 1px;}#sk-container-id-2 div.sk-estimator {font-family: monospace;background-color: #f0f8ff;border: 1px dotted black;border-radius: 0.25em;box-sizing: border-box;margin-bottom: 0.5em;}#sk-container-id-2 div.sk-estimator:hover {background-color: #d4ebff;}#sk-container-id-2 div.sk-parallel-item::after {content: \"\";width: 100%;border-bottom: 1px solid gray;flex-grow: 1;}#sk-container-id-2 div.sk-label:hover label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-2 div.sk-serial::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: 0;}#sk-container-id-2 div.sk-serial {display: flex;flex-direction: column;align-items: center;background-color: white;padding-right: 0.2em;padding-left: 0.2em;position: relative;}#sk-container-id-2 div.sk-item {position: relative;z-index: 1;}#sk-container-id-2 div.sk-parallel {display: flex;align-items: stretch;justify-content: center;background-color: white;position: relative;}#sk-container-id-2 div.sk-item::before, #sk-container-id-2 div.sk-parallel-item::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: -1;}#sk-container-id-2 div.sk-parallel-item {display: flex;flex-direction: column;z-index: 1;position: relative;background-color: white;}#sk-container-id-2 div.sk-parallel-item:first-child::after {align-self: flex-end;width: 50%;}#sk-container-id-2 div.sk-parallel-item:last-child::after {align-self: flex-start;width: 50%;}#sk-container-id-2 div.sk-parallel-item:only-child::after {width: 0;}#sk-container-id-2 div.sk-dashed-wrapped {border: 1px dashed gray;margin: 0 0.4em 0.5em 0.4em;box-sizing: border-box;padding-bottom: 0.4em;background-color: white;}#sk-container-id-2 div.sk-label label {font-family: monospace;font-weight: bold;display: inline-block;line-height: 1.2em;}#sk-container-id-2 div.sk-label-container {text-align: center;}#sk-container-id-2 div.sk-container {/* jupyter's `normalize.less` sets `[hidden] { display: none; }` but bootstrap.min.css set `[hidden] { display: none !important; }` so we also need the `!important` here to be able to override the default hidden behavior on the sphinx rendered scikit-learn.org. See: https://github.com/scikit-learn/scikit-learn/issues/21755 */display: inline-block !important;position: relative;}#sk-container-id-2 div.sk-text-repr-fallback {display: none;}</style><div id=\"sk-container-id-2\" class=\"sk-top-container\"><div class=\"sk-text-repr-fallback\"><pre>MultinomialNB(alpha=0.35)</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br />On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class=\"sk-container\" hidden><div class=\"sk-item\"><div class=\"sk-estimator sk-toggleable\"><input class=\"sk-toggleable__control sk-hidden--visually\" id=\"sk-estimator-id-2\" type=\"checkbox\" checked><label for=\"sk-estimator-id-2\" class=\"sk-toggleable__label sk-toggleable__label-arrow\">MultinomialNB</label><div class=\"sk-toggleable__content\"><pre>MultinomialNB(alpha=0.35)</pre></div></div></div></div></div>"
+      ],
+      "text/plain": [
+       "MultinomialNB(alpha=0.35)"
+      ]
+     },
+     "execution_count": 18,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "classifier1 = MultinomialNB(alpha=0.35)\n",
+    "classifier1.fit(X_train_counts1, y_train)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "id": "fd6f672d",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:37.016486Z",
+     "iopub.status.busy": "2025-10-28T04:41:37.016224Z",
+     "iopub.status.idle": "2025-10-28T04:41:37.020407Z",
+     "shell.execute_reply": "2025-10-28T04:41:37.019721Z"
+    },
+    "papermill": {
+     "duration": 0.01063,
+     "end_time": "2025-10-28T04:41:37.021628",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:37.010998",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "y_pred1 = classifier1.predict(X_test_counts1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "8f4df0ff",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-28T04:41:37.031703Z",
+     "iopub.status.busy": "2025-10-28T04:41:37.031421Z",
+     "iopub.status.idle": "2025-10-28T04:41:37.037514Z",
+     "shell.execute_reply": "2025-10-28T04:41:37.036746Z"
+    },
+    "papermill": {
+     "duration": 0.012566,
+     "end_time": "2025-10-28T04:41:37.038783",
+     "exception": false,
+     "start_time": "2025-10-28T04:41:37.026217",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "The accuracy score is: 0.65\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(f\"The accuracy score is: {accuracy_score(y_test, y_pred1)}\")"
+   ]
+  }
+ ],
+ "metadata": {
+  "kaggle": {
+   "accelerator": "none",
+   "dataSources": [
+    {
+     "datasetId": 4309095,
+     "sourceId": 7408860,
+     "sourceType": "datasetVersion"
+    }
+   ],
+   "dockerImageVersionId": 31153,
+   "isGpuEnabled": false,
+   "isInternetEnabled": true,
+   "language": "python",
+   "sourceType": "notebook"
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.13"
+  },
+  "papermill": {
+   "default_parameters": {},
+   "duration": 9.077746,
+   "end_time": "2025-10-28T04:41:37.663733",
+   "environment_variables": {},
+   "exception": null,
+   "input_path": "__notebook__.ipynb",
+   "output_path": "__notebook__.ipynb",
+   "parameters": {},
+   "start_time": "2025-10-28T04:41:28.585987",
+   "version": "2.6.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
